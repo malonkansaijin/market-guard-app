@@ -1,0 +1,32 @@
+[
+  {
+    "symbol": "SPY",
+    "last_date": "2025-10-31",
+    "regime": "Under Pressure",
+    "dd_25d": 5,
+    "churn_25d": 3,
+    "ftd": {
+      "status": "none",
+      "date": null,
+      "invalidated_on": null,
+      "day1": "2025-10-28"
+    },
+    "sparkline": "\u2583\u2583\u2582\u2582\u2582\u2583\u2583\u2584\u2584\u2584\u2584\u2584\u2585\u2584\u2581\u2583\u2582\u2583\u2582\u2583\u2584\u2584\u2584\u2584\u2585\u2587\u2587\u2588\u2586\u2586",
+    "high_priority_warnings": 1
+  },
+  {
+    "symbol": "QQQ",
+    "last_date": "2025-10-31",
+    "regime": "Correction",
+    "dd_25d": 6,
+    "churn_25d": 0,
+    "ftd": {
+      "status": "none",
+      "date": null,
+      "invalidated_on": null,
+      "day1": "2025-10-31"
+    },
+    "sparkline": "\u2582\u2582\u2581\u2581\u2581\u2582\u2582\u2583\u2583\u2583\u2583\u2583\u2584\u2584\u2581\u2582\u2582\u2582\u2582\u2583\u2584\u2584\u2583\u2584\u2585\u2586\u2587\u2588\u2586\u2586",
+    "high_priority_warnings": 1
+  }
+]
