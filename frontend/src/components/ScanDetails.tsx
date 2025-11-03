@@ -45,6 +45,13 @@ export function ScanDetails({ data }: ScanDetailsProps): JSX.Element {
   return (
     <div className="card">
       <h2>Scan Details</h2>
+      <p className="legend-note">
+        <strong>Top ribbon:</strong>{' '}
+        <span className="legend-swatch legend-alert">■</span> DD cluster alert (4+){' '}
+        <span className="legend-swatch legend-high">■</span> DD cluster high risk (6+){' '}
+        <span className="legend-swatch legend-watch">■</span> Watch-level (MA50 break 等){' '}
+        <span className="legend-swatch legend-info">■</span> Info-level (MA21 reclaim 等)
+      </p>
       {data.map((symbol) => (
         <div key={symbol.symbol} style={{ marginBottom: 32 }}>
           <div className="section-title">{symbol.symbol} — {symbol.last_date}</div>

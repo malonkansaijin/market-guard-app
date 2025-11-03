@@ -63,7 +63,7 @@ tbody td {
   justify-content: center;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: #fff;
 }
@@ -106,6 +106,110 @@ tbody td {
 .table-note {
   font-size: 12px;
   color: #64748b;
+}
+
+.legend-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.legend-note strong {
+  color: #1e293b;
+}
+
+.legend-note .legend-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  font-weight: 700;
+  font-size: 10px;
+  margin: 0 4px 0 8px;
+  color: transparent;
+}
+
+.legend-note .legend-swatch:first-of-type {
+  margin-left: 6px;
+}
+
+.legend-alert {
+  background: rgba(239, 68, 68, 0.16);
+  border: 1px solid #ef4444;
+}
+
+.legend-high {
+  background: rgba(124, 58, 237, 0.16);
+  border: 1px solid #7c3aed;
+}
+
+.legend-watch {
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid #f97316;
+}
+
+.legend-info {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid #3b82f6;
+}
+
+.header-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: underline dotted rgba(100, 116, 139, 0.6);
+  text-decoration-thickness: 1px;
+}
+
+.header-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  max-width: 220px;
+  width: max-content;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.95);
+  color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 3;
+  white-space: pre;
+  text-align: left;
+}
+
+.header-tooltip::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 2px);
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid rgba(15, 23, 42, 0.95);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  pointer-events: none;
+}
+
+.header-tooltip:hover::after,
+.header-tooltip:focus-visible::after,
+.header-tooltip:hover::before,
+.header-tooltip:focus-visible::before {
+  opacity: 1;
+}
+
+.header-tooltip:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 4px;
 }
 
 .loading,

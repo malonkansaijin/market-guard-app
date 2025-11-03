@@ -40,3 +40,12 @@ Deliverable: 単一ファイル `market_guard.py`（Python3）。依存は pip �
 
 ## Implement now
 - 上記仕様で `market_guard.py` を生成し、必要パッケージと使い方を docstring に記述。
+
+---
+
+## Summary (2025-11-02 時点)
+- `market_guard.py` を FastAPI バックエンド＋React フロントへ発展。`/scan` と `/summary` API が CAN-SLIM 指標・警告を JSON 返却し、フロントはダッシュボード表示。
+- `backend/app/config.py` で閾値を環境変数化。サンプルレスポンス（`backend/samples/*.json`）と Pytest（`backend/tests/test_samples.py`）でスキーマ検証。
+- フロント（Vite + React）は Summary 表と詳細テーブルを実装。デフォルト銘柄は `^N225,SPY,QQQ`。`npm install` → `npm run dev` で起動。
+- MarketChart コンポーネントはローソク足＋MA21/50/200 を上段、出来高バーを下段に分離。警告はアノテーションで表示し、MA ラインは `connectNulls` で常時線表示。
+- 最新コミット: `Add frontend dashboard and CAN-SLIM API enhancements`（`main` に push 済み）。

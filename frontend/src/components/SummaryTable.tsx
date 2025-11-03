@@ -11,6 +11,44 @@ const regimeColor: Record<string, string> = {
   Neutral: '#0ea5e9'
 };
 
+const COLUMN_HEADERS: Array<{ key: string; label: string; description: string }> = [
+  {
+    key: 'symbol',
+    label: 'Symbol',
+    description: '表示中のティッカーコードです。\n指数やETFを含みます。\n例: SPY, ^N225。'
+  },
+  {
+    key: 'regime',
+    label: 'Regime',
+    description: 'CAN-SLIM による市場レジームです。\nUptrendなどの区分でリスク\nを把握します。'
+  },
+  {
+    key: 'dd25',
+    label: 'DD (25d)',
+    description: '直近25営業日のDistribution Day\n(機関投資家の売り圧力が出た日)件数\nです。6本で Correction への警戒目安\nとなります。'
+  },
+  {
+    key: 'churn25',
+    label: 'Churn (25d)',
+    description: '直近25営業日のChurn(失速日)件数\nです。値幅が狭く出来高が増える\n失速シグナルを示します。'
+  },
+  {
+    key: 'ftd',
+    label: 'FTD Status',
+    description: 'Follow-Through Day(上昇転換確認日)\nの状態です。active・invalidated・ \nnoneのいずれかを表示します。'
+  },
+  {
+    key: 'alerts',
+    label: 'High Priority Alerts',
+    description: '最新日の重要警告件数です。\nalert または high レベルのみを\nカウントしています。'
+  },
+  {
+    key: 'sparkline',
+    label: 'Sparkline',
+    description: '直近終値のミニチャートです。\n市場の短期トレンドをひと目で\n確認できます。'
+  }
+];
+
 function renderRegime(regime: string): JSX.Element {
   const color = regimeColor[regime] ?? '#6366f1';
   return (
@@ -25,13 +63,13 @@ export function SummaryTable({ data }: SummaryTableProps): JSX.Element {
       <table>
         <thead>
           <tr>
-            <th>Symbol</th>
-            <th>Regime</th>
-            <th>DD (25d)</th>
-            <th>Churn (25d)</th>
-            <th>FTD Status</th>
-            <th>High Priority Alerts</th>
-            <th>Sparkline</th>
+            {COLUMN_HEADERS.map((column) => (
+              <th key={column.key}>
+                <span className="header-tooltip" data-tooltip={column.description}>
+                  {column.label}
+                </span>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
