@@ -36,6 +36,17 @@ class FTDInfoModel(BaseModel):
     day1: str | None = None
 
 
+class PostFTDMetricsModel(BaseModel):
+    monitor_days: int
+    monitor_window: int
+    ma50_breaches: int
+    ma50_breach_dates: list[str]
+    volume_decline_streak: int
+    volume_fade_triggered: bool
+    volume_fade_date: str | None
+    ma50_held_first3: bool
+
+
 class SymbolScan(BaseModel):
     symbol: str
     last_date: str
@@ -45,6 +56,7 @@ class SymbolScan(BaseModel):
     ftd: FTDInfoModel
     sparkline: str
     items: list[DailyItemModel]
+    post_ftd_metrics: PostFTDMetricsModel | None = None
 
 
 class SymbolOverview(BaseModel):
@@ -56,6 +68,36 @@ class SymbolOverview(BaseModel):
     ftd: FTDInfoModel
     sparkline: str
     high_priority_warnings: int
+    post_ftd_metrics: PostFTDMetricsModel | None = None
+
+
+class BreadthModel(BaseModel):
+    total: int
+    above_ma21: int
+    above_ma50: int
+    positive_close: int
+    above_ma21_pct: float
+    above_ma50_pct: float
+    positive_close_pct: float
+
+
+class LeadingSymbolModel(BaseModel):
+    symbol: str
+    close: float
+    ma50: float | None
+    below_ma50: bool
+
+
+class LeadingStatsModel(BaseModel):
+    total: int
+    below_ma50: int
+    below_ma50_pct: float
+    symbols: list[LeadingSymbolModel]
+
+
+class MarketContextModel(BaseModel):
+    breadth: BreadthModel
+    leading: LeadingStatsModel
 
 app = FastAPI(title="Market Guard API")
 
@@ -92,7 +134,7 @@ async def api_scan(
     if not tickers:
         raise HTTPException(status_code=400, detail="No symbols provided.")
     try:
-        summaries = summarize_symbols(tickers, days)
+        summaries, _ = summarize_symbols(tickers, days)
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return [SymbolScan(**summary.as_payload()) for summary in summaries]
@@ -116,7 +158,31 @@ async def api_summary(
     if not tickers:
         raise HTTPException(status_code=400, detail="No symbols provided.")
     try:
-        summaries = summarize_symbols(tickers, days)
+        summaries, _ = summarize_symbols(tickers, days)
     except RuntimeError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return [SymbolOverview(**summarize_overview(summary)) for summary in summaries]
+
+
+@app.get(
+    "/context",
+    response_model=MarketContextModel,
+    summary="Market context metrics",
+)
+async def api_context(
+    symbols: str = Query("SPY,QQQ", description="Comma-separated ticker list."),
+    days: int = Query(
+        120,
+        ge=30,
+        le=365,
+        description="Number of trading days to include in calculations.",
+    ),
+) -> MarketContextModel:
+    tickers = parse_symbols(symbols)
+    if not tickers:
+        raise HTTPException(status_code=400, detail="No symbols provided.")
+    try:
+        _, context = summarize_symbols(tickers, days)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return MarketContextModel(**context.as_payload())

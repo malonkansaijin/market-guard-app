@@ -1,4 +1,4 @@
-import type { SymbolOverview } from '../types';
+import type { PostFTDMetrics, SymbolOverview } from '../types';
 
 interface SummaryTableProps {
   data: SymbolOverview[];
@@ -43,6 +43,11 @@ const COLUMN_HEADERS: Array<{ key: string; label: string; description: string }>
     description: '最新日の重要警告件数です。\nalert または high レベルのみを\nカウントしています。'
   },
   {
+    key: 'postFtd',
+    label: 'Post-FTD',
+    description: 'FTD 後の MA50 割れ回数や出来高フェードの有無を確認します。'
+  },
+  {
     key: 'sparkline',
     label: 'Sparkline',
     description: '直近終値のミニチャートです。\n市場の短期トレンドをひと目で\n確認できます。'
@@ -53,6 +58,18 @@ function renderRegime(regime: string): JSX.Element {
   const color = regimeColor[regime] ?? '#6366f1';
   return (
     <span style={{ color, fontWeight: 700 }}>{regime}</span>
+  );
+}
+
+function renderPostFtd(metrics: PostFTDMetrics | null): JSX.Element {
+  if (!metrics) {
+    return <span className="context-muted">—</span>;
+  }
+  return (
+    <div className="post-ftd-cell">
+      <span>MA50割れ: {metrics.ma50_breaches}</span>
+      <span>Fade: {metrics.volume_fade_triggered ? 'あり' : 'なし'}</span>
+    </div>
   );
 }
 
@@ -81,6 +98,7 @@ export function SummaryTable({ data }: SummaryTableProps): JSX.Element {
               <td>{item.churn_25d}</td>
               <td>{item.ftd.status}</td>
               <td>{item.high_priority_warnings}</td>
+              <td>{renderPostFtd(item.post_ftd_metrics)}</td>
               <td style={{ fontFamily: 'monospace' }}>{item.sparkline}</td>
             </tr>
           ))}

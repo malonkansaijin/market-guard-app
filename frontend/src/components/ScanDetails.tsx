@@ -1,4 +1,4 @@
-import type { DailyItem, SymbolScan, WarningPayload } from '../types';
+import type { DailyItem, PostFTDMetrics, SymbolScan, WarningPayload } from '../types';
 import { MarketChart } from './MarketChart';
 
 interface ScanDetailsProps {
@@ -41,6 +41,31 @@ function DailyRow({ item }: { item: DailyItem }): JSX.Element {
   );
 }
 
+function renderPostFtdMetrics(metrics: PostFTDMetrics | null): JSX.Element | null {
+  if (!metrics) return null;
+
+  return (
+    <div className="post-ftd-summary">
+      <div>
+        <span className="post-ftd-label">監視日数</span>
+        <span>{metrics.monitor_days}</span>
+      </div>
+      <div>
+        <span className="post-ftd-label">MA50割れ</span>
+        <span>{metrics.ma50_breaches}</span>
+      </div>
+      <div>
+        <span className="post-ftd-label">出来高フェード</span>
+        <span>{metrics.volume_fade_triggered ? 'あり' : 'なし'}</span>
+      </div>
+      <div>
+        <span className="post-ftd-label">初動3日保持</span>
+        <span>{metrics.ma50_held_first3 ? '維持' : '崩れ'}</span>
+      </div>
+    </div>
+  );
+}
+
 export function ScanDetails({ data }: ScanDetailsProps): JSX.Element {
   return (
     <div className="card">
@@ -52,10 +77,16 @@ export function ScanDetails({ data }: ScanDetailsProps): JSX.Element {
         <span className="legend-swatch legend-watch">■</span> Watch-level (MA50 break 等){' '}
         <span className="legend-swatch legend-info">■</span> Info-level (MA21 reclaim 等)
       </p>
+      <p className="legend-note">
+        <strong>Volume bars:</strong>{' '}
+        <span className="legend-swatch legend-volume-up">■</span> Close ≧ Open（上昇日）{' '}
+        <span className="legend-swatch legend-volume-down">■</span> Close ＜ Open（下落日）
+      </p>
       {data.map((symbol) => (
         <div key={symbol.symbol} style={{ marginBottom: 32 }}>
           <div className="section-title">{symbol.symbol} — {symbol.last_date}</div>
           <MarketChart items={symbol.items} />
+          {renderPostFtdMetrics(symbol.post_ftd_metrics)}
           <table>
             <thead>
               <tr>

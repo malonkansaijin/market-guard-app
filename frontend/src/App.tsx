@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { fetchScan, fetchSummary } from './api/client';
+import { fetchContext, fetchScan, fetchSummary } from './api/client';
 import { useApi } from './hooks/useApi';
 import { SummaryTable } from './components/SummaryTable';
 import { ScanDetails } from './components/ScanDetails';
-import type { SymbolOverview, SymbolScan } from './types';
+import { MarketContextCard } from './components/MarketContextCard';
+import type { MarketContext, SymbolOverview, SymbolScan } from './types';
 
 const DEFAULT_SYMBOLS = '^N225,SPY,QQQ';
 const DEFAULT_DAYS = 120;
@@ -22,8 +23,13 @@ export default function App(): JSX.Element {
     [symbols, days]
   );
 
-  const isLoading = summaryState.loading || scanState.loading;
-  const errorMessage = summaryState.error ?? scanState.error;
+  const contextState = useApi<MarketContext>(
+    () => fetchContext(symbols, days),
+    [symbols, days]
+  );
+
+  const isLoading = summaryState.loading || scanState.loading || contextState.loading;
+  const errorMessage = summaryState.error ?? scanState.error ?? contextState.error;
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -36,6 +42,7 @@ export default function App(): JSX.Element {
 
   const summaryData = useMemo(() => summaryState.data ?? [], [summaryState.data]);
   const scanData = useMemo(() => scanState.data ?? [], [scanState.data]);
+  const contextData = contextState.data ?? null;
 
   return (
     <div className="app-shell">
@@ -68,6 +75,10 @@ export default function App(): JSX.Element {
 
       {isLoading && <div className="loading">読み込み中...</div>}
       {errorMessage && <div className="error">エラー: {errorMessage}</div>}
+
+      {!isLoading && !errorMessage && contextData && (
+        <MarketContextCard context={contextData} />
+      )}
 
       {!isLoading && !errorMessage && summaryData.length > 0 && (
         <SummaryTable data={summaryData} />

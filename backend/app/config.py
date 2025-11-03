@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Tuple
 
 
 def _get_env(name: str) -> str | None:
@@ -20,6 +21,15 @@ def _parse(name: str, cast, default):
         return cast(raw)
     except Exception:
         return default
+
+
+def _parse_symbols(name: str, default: Tuple[str, ...]) -> Tuple[str, ...]:
+    raw = _get_env(name)
+    if raw is None:
+        return default
+    parts = [part.strip().upper() for part in raw.split(",")]
+    items = tuple(part for part in parts if part)
+    return items or default
 
 
 @dataclass(frozen=True)
@@ -51,3 +61,28 @@ class ThresholdConfig:
 
 CONFIG = ThresholdConfig.from_env()
 
+
+@dataclass(frozen=True)
+class AppSettings:
+    leading_symbols: Tuple[str, ...]
+    post_ftd_monitor_days: int = 10
+
+    @classmethod
+    def from_env(cls) -> "AppSettings":
+        default_leaders = (
+            "TSLA",
+            "NVDA",
+            "MSFT",
+            "AMZN",
+            "META",
+            "GOOGL",
+            "AAPL",
+            "LLY",
+        )
+        return cls(
+            leading_symbols=_parse_symbols("LEADING_SYMBOLS", default_leaders),
+            post_ftd_monitor_days=_parse("POST_FTD_MONITOR_DAYS", int, cls.post_ftd_monitor_days),
+        )
+
+
+SETTINGS = AppSettings.from_env()

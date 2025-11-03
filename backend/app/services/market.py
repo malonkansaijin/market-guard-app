@@ -7,9 +7,72 @@ from typing import Dict, List, Optional, Sequence
 import pandas as pd
 import yfinance as yf
 
-from ..config import CONFIG
+from ..config import CONFIG, SETTINGS
 
 SPARKLINE_BARS = "▁▂▃▄▅▆▇█"
+
+
+@dataclass
+class BreadthStats:
+    total: int
+    above_ma21: int
+    above_ma50: int
+    positive_close: int
+
+    def as_payload(self) -> Dict[str, object]:
+        return {
+            "total": self.total,
+            "above_ma21": self.above_ma21,
+            "above_ma50": self.above_ma50,
+            "positive_close": self.positive_close,
+            "above_ma21_pct": (self.above_ma21 / self.total * 100.0) if self.total else 0.0,
+            "above_ma50_pct": (self.above_ma50 / self.total * 100.0) if self.total else 0.0,
+            "positive_close_pct": (self.positive_close / self.total * 100.0) if self.total else 0.0,
+        }
+
+
+@dataclass
+class LeadingSymbolStat:
+    symbol: str
+    close: float
+    ma50: Optional[float]
+    below_ma50: bool
+
+    def as_payload(self) -> Dict[str, object]:
+        return {
+            "symbol": self.symbol,
+            "close": self.close,
+            "ma50": self.ma50,
+            "below_ma50": self.below_ma50,
+        }
+
+
+@dataclass
+class LeadingStats:
+    total: int
+    below_ma50: int
+    symbols: List[LeadingSymbolStat]
+
+    def as_payload(self) -> Dict[str, object]:
+        pct = (self.below_ma50 / self.total * 100.0) if self.total else 0.0
+        return {
+            "total": self.total,
+            "below_ma50": self.below_ma50,
+            "below_ma50_pct": pct,
+            "symbols": [item.as_payload() for item in self.symbols],
+        }
+
+
+@dataclass
+class MarketContext:
+    breadth: BreadthStats
+    leading: LeadingStats
+
+    def as_payload(self) -> Dict[str, object]:
+        return {
+            "breadth": self.breadth.as_payload(),
+            "leading": self.leading.as_payload(),
+        }
 
 
 @dataclass
@@ -77,6 +140,7 @@ class SymbolSummary:
     ftd: Dict[str, Optional[str]]
     sparkline: str
     items: List[DailyItem]
+    post_ftd_metrics: Optional[Dict[str, object]]
 
     def as_payload(self) -> Dict[str, object]:
         return {
@@ -88,6 +152,7 @@ class SymbolSummary:
             "ftd": self.ftd,
             "sparkline": self.sparkline,
             "items": [item.to_dict() for item in self.items],
+            "post_ftd_metrics": self.post_ftd_metrics,
         }
 
 
@@ -230,6 +295,14 @@ def summarize_symbol(symbol: str, days: int) -> SymbolSummary:
     ftd_idx: Optional[int] = None
     ftd_status = {"status": "none", "date": None, "invalidated_on": None, "day1": None}
     dd_post_ftd: List[int] = []
+    post_ftd_monitor_days = 0
+    post_ftd_ma50_breaches = 0
+    post_ftd_ma50_breach_dates: List[str] = []
+    post_ftd_ma50_warning_issued = False
+    post_ftd_volume_decline_streak = 0
+    post_ftd_volume_warning_triggered = False
+    post_ftd_volume_warning_date: Optional[str] = None
+    post_ftd_ma50_strength_confirmed = False
 
     lows = df["Low"].to_numpy()
 
@@ -380,6 +453,14 @@ def summarize_symbol(symbol: str, days: int) -> SymbolSummary:
             ftd_status["status"] = "active"
             ftd_status["date"] = date.strftime("%Y-%m-%d")
             dd_post_ftd = []
+            post_ftd_monitor_days = 0
+            post_ftd_ma50_breaches = 0
+            post_ftd_ma50_breach_dates = []
+            post_ftd_ma50_warning_issued = False
+            post_ftd_volume_decline_streak = 0
+            post_ftd_volume_warning_triggered = False
+            post_ftd_volume_warning_date = None
+            post_ftd_ma50_strength_confirmed = False
             evidence = {
                 "pct": round(pct_change, 2),
                 "volume_ratio": round(volume_ratio, 2) if volume_ratio is not None else None,
@@ -396,6 +477,57 @@ def summarize_symbol(symbol: str, days: int) -> SymbolSummary:
             )
 
         if ftd_idx is not None and ftd_status["status"] == "active":
+            if idx > ftd_idx:
+                post_ftd_monitor_days += 1
+                if not pd.isna(ma50) and row["Close"] < ma50:
+                    post_ftd_ma50_breaches += 1
+                    post_ftd_ma50_breach_dates.append(date.strftime("%Y-%m-%d"))
+                    if not post_ftd_ma50_warning_issued and post_ftd_ma50_breaches >= 2:
+                        warnings_top.append(
+                            _create_warning(
+                                "top",
+                                "MA50_POST_FTD_WEAK",
+                                "alert",
+                                "Repeated closes below 50-day average after FTD.",
+                                evidence={"breaches": post_ftd_ma50_breaches},
+                            )
+                        )
+                        post_ftd_ma50_warning_issued = True
+                if prev_row is not None and row["Volume"] < prev_row["Volume"]:
+                    post_ftd_volume_decline_streak += 1
+                    if (
+                        not post_ftd_volume_warning_triggered
+                        and post_ftd_volume_decline_streak >= 3
+                    ):
+                        warnings_bottom.append(
+                            _create_warning(
+                                "bottom",
+                                "FTD_VOLUME_FADE",
+                                "watch",
+                                "Volume declined for 3 sessions after FTD confirmation.",
+                                evidence={"streak": post_ftd_volume_decline_streak},
+                            )
+                        )
+                        post_ftd_volume_warning_triggered = True
+                        post_ftd_volume_warning_date = date.strftime("%Y-%m-%d")
+                else:
+                    post_ftd_volume_decline_streak = 0
+
+                if (
+                    post_ftd_monitor_days >= 3
+                    and post_ftd_ma50_breaches == 0
+                    and not post_ftd_ma50_strength_confirmed
+                ):
+                    warnings_bottom.append(
+                        _create_warning(
+                            "bottom",
+                            "MA50_POST_FTD_STRONG",
+                            "info",
+                            "Held above 50-day average during first 3 sessions post FTD.",
+                        )
+                    )
+                    post_ftd_ma50_strength_confirmed = True
+
             if row.get("dd_flag", False):
                 dd_post_ftd.append(idx)
             day1_low = lows[day1_idx] if day1_idx is not None else None
@@ -439,6 +571,24 @@ def summarize_symbol(symbol: str, days: int) -> SymbolSummary:
             )
         )
 
+    post_ftd_metrics: Optional[Dict[str, object]] = None
+    if (
+        ftd_status["status"] != "none"
+        or post_ftd_monitor_days > 0
+        or post_ftd_ma50_breaches > 0
+        or post_ftd_volume_warning_triggered
+    ):
+        post_ftd_metrics = {
+            "monitor_days": post_ftd_monitor_days,
+            "ma50_breaches": post_ftd_ma50_breaches,
+            "ma50_breach_dates": post_ftd_ma50_breach_dates,
+            "volume_decline_streak": post_ftd_volume_decline_streak,
+            "volume_fade_triggered": post_ftd_volume_warning_triggered,
+            "volume_fade_date": post_ftd_volume_warning_date,
+            "ma50_held_first3": post_ftd_ma50_strength_confirmed,
+            "monitor_window": SETTINGS.post_ftd_monitor_days,
+        }
+
     ftd_active = ftd_status["status"] == "active"
     regime = determine_regime(df.iloc[-1], dd_25d, ftd_active) if not df.empty else "Neutral"
     last_date = df.index[-1].strftime("%Y-%m-%d") if not df.empty else ""
@@ -452,11 +602,74 @@ def summarize_symbol(symbol: str, days: int) -> SymbolSummary:
         ftd=ftd_status,
         sparkline=sparkline,
         items=items,
+        post_ftd_metrics=post_ftd_metrics,
     )
 
 
-def summarize_symbols(symbols: List[str], days: int) -> List[SymbolSummary]:
-    return [summarize_symbol(symbol, days) for symbol in symbols]
+def _compute_breadth_stats(summaries: List[SymbolSummary]) -> BreadthStats:
+    total = len(summaries)
+    above_ma21 = 0
+    above_ma50 = 0
+    positive_close = 0
+    for summary in summaries:
+        latest = summary.items[-1] if summary.items else None
+        if latest is None:
+            continue
+        if latest.ma21 is not None and latest.close >= latest.ma21:
+            above_ma21 += 1
+        if latest.ma50 is not None and latest.close >= latest.ma50:
+            above_ma50 += 1
+        if latest.pct is not None and latest.pct > 0:
+            positive_close += 1
+    return BreadthStats(
+        total=total,
+        above_ma21=above_ma21,
+        above_ma50=above_ma50,
+        positive_close=positive_close,
+    )
+
+
+def _compute_leading_stats(
+    summary_map: Dict[str, SymbolSummary], days: int
+) -> LeadingStats:
+    stats: List[LeadingSymbolStat] = []
+    for symbol in SETTINGS.leading_symbols:
+        summary = summary_map.get(symbol)
+        if summary is None:
+            try:
+                summary = summarize_symbol(symbol, days)
+            except RuntimeError:
+                continue
+        latest = summary.items[-1] if summary.items else None
+        if latest is None:
+            continue
+        ma50 = latest.ma50
+        below_ma50 = bool(ma50 is not None and latest.close < ma50)
+        stats.append(
+            LeadingSymbolStat(
+                symbol=symbol,
+                close=latest.close,
+                ma50=ma50,
+                below_ma50=below_ma50,
+            )
+        )
+    total = len(stats)
+    below = sum(1 for stat in stats if stat.below_ma50)
+    return LeadingStats(total=total, below_ma50=below, symbols=stats)
+
+
+def summarize_symbols(symbols: List[str], days: int) -> tuple[List[SymbolSummary], MarketContext]:
+    summaries: List[SymbolSummary] = []
+    summary_map: Dict[str, SymbolSummary] = {}
+    for symbol in symbols:
+        summary = summarize_symbol(symbol, days)
+        summaries.append(summary)
+        summary_map[symbol] = summary
+
+    breadth = _compute_breadth_stats(summaries)
+    leading = _compute_leading_stats(summary_map, days)
+    context = MarketContext(breadth=breadth, leading=leading)
+    return summaries, context
 
 
 def summarize_overview(summary: SymbolSummary) -> Dict[str, object]:
@@ -476,4 +689,5 @@ def summarize_overview(summary: SymbolSummary) -> Dict[str, object]:
         "ftd": summary.ftd,
         "sparkline": summary.sparkline,
         "high_priority_warnings": high_priority,
+        "post_ftd_metrics": summary.post_ftd_metrics,
     }

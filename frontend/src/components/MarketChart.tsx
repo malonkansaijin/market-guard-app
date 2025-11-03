@@ -143,6 +143,13 @@ export function MarketChart({ items, height = 360 }: MarketChartProps): JSX.Elem
   const maxPrice = hasValues ? Math.max(...relevantValues) : undefined;
 
   const toTimestamp = (value: string): number => new Date(value).getTime();
+  const firstTimestamp = items.length > 0 ? toTimestamp(items[0].date) : undefined;
+  const lastTimestamp = items.length > 0 ? toTimestamp(items[items.length - 1].date) : undefined;
+  const gap =
+    items.length > 1 ? Math.max(toTimestamp(items[1].date) - firstTimestamp!, 1) : DAY_MS;
+  const xPadding = gap / 2;
+  const xMin = firstTimestamp !== undefined ? firstTimestamp - xPadding : undefined;
+  const xMax = lastTimestamp !== undefined ? lastTimestamp + xPadding : undefined;
 
   const priceCandles = [
     {
@@ -173,45 +180,53 @@ export function MarketChart({ items, height = 360 }: MarketChartProps): JSX.Elem
       data: items.map((item) => ({
         x: toTimestamp(item.date),
         y: item.v,
-        fillColor: item.c >= item.o ? '#16a34a' : '#ef4444'
+        fillColor: item.c >= item.o ? '#ef4444' : '#16a34a'
       }))
     }
   ];
 
   const annotations = buildAnnotations(items);
 
-const priceOptions: ApexOptions = {
-  chart: {
-    type: 'candlestick',
-    height,
-    background: 'transparent',
-    toolbar: {
-      show: true,
-      tools: { pan: true, zoom: true, zoomin: true, zoomout: true, reset: true }
+  const priceOptions: ApexOptions = {
+    chart: {
+      type: 'candlestick',
+      height,
+      background: 'transparent',
+      id: 'market-guard-price',
+      group: 'market-guard-sync',
+      toolbar: {
+        show: true,
+        tools: { pan: true, zoom: true, zoomin: true, zoomout: true, reset: true }
+      },
+      animations: { enabled: false },
+      sparkline: { enabled: false }
     },
-    animations: { enabled: false },
-    sparkline: { enabled: false }
-  },
     xaxis: {
       type: 'datetime',
-      labels: { datetimeUTC: false }
+      labels: { datetimeUTC: false },
+      tickPlacement: 'on',
+      min: xMin,
+      max: xMax
     },
     yaxis: {
       decimalsInFloat: 2,
       tooltip: { enabled: true },
       min: minPrice !== undefined ? minPrice * 0.97 : undefined,
-      max: maxPrice !== undefined ? maxPrice * 1.03 : undefined
+      max: maxPrice !== undefined ? maxPrice * 1.03 : undefined,
+      labels: {
+        minWidth: 72
+      }
     },
     colors: ['#0ea5e9', ...MA_CONFIG.map(({ color }) => color)],
     stroke: {
       width: [1, ...maSeries.map(() => 3)],
       curve: 'smooth'
     },
-  plotOptions: {
-    candlestick: {
-      colors: { upward: '#16a34a', downward: '#ef4444' }
-    }
-  },
+    plotOptions: {
+      candlestick: {
+        colors: { upward: '#ef4444', downward: '#16a34a' }
+      }
+    },
     fill: {
       opacity: [1, ...maSeries.map(() => 0)]
     },
@@ -234,15 +249,32 @@ const priceOptions: ApexOptions = {
       type: 'bar',
       height: 160,
       background: 'transparent',
-      toolbar: { show: false }
+      id: 'market-guard-volume',
+      group: 'market-guard-sync',
+      brush: { enabled: true, target: 'market-guard-price' },
+      toolbar: { show: false },
+      offsetY: -35,
+      selection:
+        xMin !== undefined && xMax !== undefined
+          ? {
+              xaxis: {
+                min: xMin,
+                max: xMax,
+              },
+            }
+          : undefined,
     },
     xaxis: {
       type: 'datetime',
-      labels: { datetimeUTC: false }
+      labels: { datetimeUTC: false },
+      tickPlacement: 'on',
+      min: xMin,
+      max: xMax
     },
     yaxis: {
       labels: {
-        formatter: (value) => `${Math.round(value / 1_000_000)}M`
+        formatter: (value) => `${Math.round(value / 1_000_000)}M`,
+        minWidth: 72
       }
     },
     dataLabels: { enabled: false },
@@ -261,7 +293,7 @@ const priceOptions: ApexOptions = {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
       <Chart
         options={priceOptions}
         series={[...priceCandles, ...maSeries]}

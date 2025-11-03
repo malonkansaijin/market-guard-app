@@ -1,4 +1,4 @@
-import type { SymbolOverview, SymbolScan } from '../types';
+import type { MarketContext, SymbolOverview, SymbolScan } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
@@ -24,4 +24,9 @@ export async function fetchSummary(symbols: string, days: number): Promise<Symbo
 export async function fetchScan(symbols: string, days: number): Promise<SymbolScan[]> {
   const query = new URLSearchParams({ symbols, days: days.toString() });
   return await fetchJson<SymbolScan[]>(`/scan?${query.toString()}`);
+}
+
+export async function fetchContext(symbols: string, days: number): Promise<MarketContext> {
+  const query = new URLSearchParams({ symbols, days: days.toString() });
+  return await fetchJson<MarketContext>(`/context?${query.toString()}`);
 }
