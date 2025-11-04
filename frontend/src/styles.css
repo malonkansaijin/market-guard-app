@@ -53,8 +53,38 @@ thead th {
 }
 
 tbody td {
-  padding: 10px 0;
+  padding: 10px 8px;
   border-bottom: 1px solid #f1f5f9;
+}
+
+.pct-up,
+.pct-strong-up,
+.pct-down,
+.pct-strong-down {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.pct-up {
+  background-color: rgba(239, 68, 68, 0.16);
+  color: #991b1b;
+}
+
+.pct-strong-up {
+  background-color: rgba(220, 38, 38, 0.22);
+  color: #7f1d1d;
+  font-weight: 700;
+}
+
+.pct-down {
+  background-color: rgba(16, 185, 129, 0.16);
+  color: #0f766e;
+}
+
+.pct-strong-down {
+  background-color: rgba(5, 150, 105, 0.22);
+  color: #065f46;
+  font-weight: 700;
 }
 
 .badge {
